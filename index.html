@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบเลือกตั้งออนไลน์ 2026</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Kanit', sans-serif; background-color: #f0f2f5; }
+        .candidate-card { border: none; border-radius: 20px; transition: 0.3s; overflow: hidden; background: #fff; }
+        .candidate-card:hover { transform: translateY(-8px); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
+        .img-container { width: 120px; height: 120px; margin: -60px auto 15px; position: relative; }
+        .candidate-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 5px solid #fff; background: #eee; shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .color-banner { height: 100px; width: 100%; }
+        .party-tag { font-size: 0.9rem; font-weight: 500; padding: 4px 12px; border-radius: 50px; display: inline-block; margin-bottom: 10px; }
+        .btn-vote { border-radius: 12px; font-weight: 700; padding: 12px; transition: 0.2s; }
+        .btn-vote:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="fw-bold text-dark">🗳️ ระบบลงคะแนนเลือกตั้ง</h1>
+        <p class="text-secondary">กรุณาตรวจสอบข้อมูลผู้สมัครก่อนกดยืนยัน</p>
+    </div>
+
+    <div id="loader" class="text-center py-5">
+        <div class="spinner-grow text-primary" role="status"></div>
+        <p class="mt-3 text-muted">กำลังดึงข้อมูลจาก Google Sheets...</p>
+    </div>
+
+    <div id="candidateArea" class="row g-4 justify-content-center"></div>
+</div>
+
+<script>
+    // API URL ของคุณ
+    const API_ENDPOINT = "https://api.sheetbest.com/sheets/c40d1c8e-fa6a-4aa5-a9ad-31abc84388be";
+
+    // ฟังก์ชันโหลดข้อมูลผู้สมัคร
+    async function getCandidates() {
+        try {
+            const response = await fetch(`${API_ENDPOINT}/tabs/candidates`);
+            const data = await response.json();
+            renderCandidates(data);
+        } catch (err) {
+            console.error("Fetch Error:", err);
+            document.getElementById('loader').innerHTML = `<p class="text-danger">เชื่อมต่อข้อมูลไม่ได้ กรุณาเช็ค SheetBest</p>`;
+        }
+    }
+
+    // ฟังก์ชันสร้าง Card ผู้สมัคร
+    function renderCandidates(candidates) {
+        const area = document.getElementById('candidateArea');
+        document.getElementById('loader').style.display = 'none';
+
+        area.innerHTML = candidates.map(c => `
+            <div class="col-lg-4 col-md-6">
+                <div class="card candidate-card h-100 shadow-sm">
+                    <div class="color-banner" style="background: ${c.Colour || '#007bff'}"></div>
+                    <div class="card-body text-center">
+                        <div class="img-container">
+                            <img src="${c['Logo, Candid image'] || 'https://via.placeholder.com/150'}" class="candidate-img shadow">
+                        </div>
+                        <span class="party-tag" style="background: ${c.Colour}20; color: ${c.Colour}">${c['ชื่อพรรค']}</span>
+                        <h2 class="fw-bold mb-1">เบอร์ ${c.CandidateNumber}</h2>
+                        <h5 class="text-dark mb-3">${c['Candidate name']}</h5>
+                        <p class="text-muted small mb-4">คะแนน Party List: <strong>${c['คะเเนน Party List'] || '0'}</strong></p>
+                        
+                        <button onclick="submitVote('${c.CandidateNumber}', '${c['Candidate name']}')" 
+                                class="btn btn-vote w-100 text-white shadow-sm"
+                                style="background-color: ${c.Colour || '#007bff'}">
+                            ลงคะแนนเสียง
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ฟังก์ชันส่งคะแนนไปยังหน้า votes
+    async function submitVote(id, name) {
+        const confirmVote = confirm(`คุณยืนยันที่จะลงคะแนนให้ [เบอร์ ${id}] ${name} หรือไม่?`);
+        if (!confirmVote) return;
+
+        // บันทึกเวลาปัจจุบัน
+        const now = new Date();
+        const timestamp = now.toLocaleString('th-TH');
+
+        const voteData = {
+            CandidateNumber: id,
+            Timestamp: timestamp
+        };
+
+        try {
+            const response = await fetch(`${API_ENDPOINT}/tabs/votes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(voteData)
+            });
+
+            if (response.ok) {
+                alert("✅ ลงคะแนนสำเร็จเรียบร้อยแล้ว!");
+                location.reload(); 
+            }
+        } catch (error) {
+            alert("❌ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+        }
+    }
+
+    // เริ่มทำงานเมื่อเปิดหน้าเว็บ
+    window.onload = getCandidates;
+</script>
+
+</body>
+</html>
