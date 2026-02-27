@@ -71,7 +71,7 @@
                         <div class="candidate-card rounded-3xl p-6 flex flex-col items-center shadow-2xl">
                             <img src="${item.ImageURL}" class="w-32 h-32 rounded-full object-cover mb-4 border-4 border-blue-500/30">
                             <h3 class="text-xl font-bold mb-1">เบอร์ ${item.ID}: ${item.Name}</h3>
-                            <button onclick="checkAndVote(${item.ID}, ${item.ผลคะแนนทดลอง || 0}, ${index}, this)" 
+                            <button onclick="checkAndVote(${item.ID}, ${item.Votes || 0}, ${index}, this)" 
                                     class="w-full mt-4 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all active:scale-95">
                                 ลงคะแนน
                             </button>
