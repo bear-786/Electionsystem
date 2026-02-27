@@ -3,191 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเลือกตั้งออนไลน์</title>
+    <title>ระบบเลือกตั้งออนไลน์ 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Tahoma', sans-serif; background: #f4f4f9; text-align: center; padding: 20px; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
+        .header { margin-bottom: 30px; background: #007bff; color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .voter-box { background: white; padding: 20px; border-radius: 10px; display: inline-block; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        input[type="email"] { padding: 10px; width: 280px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
         .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-        .card { background: white; border-radius: 10px; padding: 20px; width: 250px; shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .card img { width: 100%; height: 200px; object-fit: cover; border-radius: 5px; }
-        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-        button:disabled { background: #ccc; }
+        .card { background: white; border-radius: 15px; padding: 15px; width: 220px; box-shadow: 0 10px 20px rgba(0,0,0,0.08); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .card img { width: 100%; height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; }
+        .card h3 { margin: 10px 0; color: #333; }
+        button.vote-btn { background: #28a745; color: white; border: none; padding: 10px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+        button.vote-btn:hover { background: #218838; }
+        #loading { font-size: 18px; color: #666; }
     </style>
 </head>
 <body>
 
-    <h1>🗳️ เลือกตั้งออนไลน์ 2026</h1>
+    <div class="header">
+        <h1>🗳️ ระบบเลือกตั้งออนไลน์</h1>
+        <p>กรุณากรอกอีเมลก่อนลงคะแนน (1 อีเมลต่อ 1 สิทธิ์)</p>
+    </div>
+
+    <div class="voter-box">
+        <label><b>ระบุอีเมลผู้โหวต:</b></label><br><br>
+        <input type="email" id="voter-email" placeholder="example@gmail.com" required>
+    </div>
+
     <div id="loading">กำลังโหลดรายชื่อผู้สมัคร...</div>
     <div class="container" id="candidate-list"></div>
 
     <script>
-        const API_GET_CANDIDATES = "https://api.sheetbest.com/sheets/2cf0bece-6373-430b-b7dd-02239ebbb35c";
-        const API_POST_VOTE = "https://api.sheetbest.com/sheets/71124488-65d6-4881-867b-a4aa1295eb54";
+        // --- ส่วนเชื่อมต่อ API ---
+        const API_SHEET_1 = "https://api.sheetbest.com/sheets/2cf0bece-6373-430b-b7dd-02239ebbb35c"; // รายชื่อ
+        const API_SHEET_2 = "https://api.sheetbest.com/sheets/71124488-65d6-4881-867b-a4aa1295eb54"; // ผลโหวต
 
-        // 1. ดึงข้อมูลผู้สมัครจาก Sheet 1
+        // 1. ดึงข้อมูลผู้สมัครมาแสดง
         async function fetchCandidates() {
             try {
-                const response = await fetch(API_GET_CANDIDATES);
+                const response = await fetch(API_SHEET_1);
                 const data = await response.json();
-                displayCandidates(data);
+                const list = document.getElementById('candidate-list');
+                list.innerHTML = "";
+                
+                data.forEach(person => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <img src="${person.image || 'https://via.placeholder.com/150'}" alt="profile">
+                        <h3>${person.name}</h3>
+                        <p>${person.description || ''}</p>
+                        <button class="vote-btn" onclick="checkAndVote('${person.id}', '${person.name}')">ลงคะแนน</button>
+                    `;
+                    list.appendChild(card);
+                });
                 document.getElementById('loading').style.display = 'none';
-            } catch (error) {
-                console.error("Error:", error);
-                document.getElementById('loading').innerText = "โหลดข้อมูลไม่สำเร็จ";
+            } catch (err) {
+                document.getElementById('loading').innerText = "ไม่สามารถโหลดข้อมูลผู้สมัครได้";
             }
         }
 
-        // 2. แสดงผลรายชื่อ
-        function displayCandidates(candidates) {
-            const list = document.getElementById('candidate-list');
-            candidates.forEach(person => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <img src="${person.image || 'https://via.placeholder.com/150'}" alt="profile">
-                    <h3>${person.name}</h3>
-                    <p>${person.description || ''}</p>
-                    <button onclick="vote('${person.id}', '${person.name}')">ลงคะแนน</button>
-                `;
-                list.appendChild(card);
+        // 2. ฟังก์ชันตรวจสอบอีเมลซ้ำ และ ลงคะแนน
+        async function checkAndVote(cId, cName) {
+            const emailInput = document.getElementById('voter-email').value.toLowerCase().trim();
+
+            // ตรวจสอบรูปแบบอีเมลเบื้องต้น
+            if (!emailInput || !emailInput.includes('@')) {
+                Swal.fire('ผิดพลาด', 'กรุณากรอกอีเมลให้ถูกต้องก่อนลงคะแนน', 'error');
+                return;
+            }
+
+            // แสดงสถานะกำลังตรวจสอบ
+            Swal.fire({
+                title: 'กำลังตรวจสอบสิทธิ์...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
             });
-        }
-
-        // 3. ส่งคะแนนไปที่ Sheet 2
-        async function vote(id, name) {
-            const voterName = prompt("กรุณากรอกชื่อผู้ลงคะแนน:");
-            if (!voterName) return;
-
-            Swal.fire({ title: 'กำลังบันทึกคะแนน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                const response = await fetch(API_POST_VOTE, {
+                // ดึงข้อมูลจาก Sheet 2 มาเช็คอีเมลซ้ำ
+                const checkRes = await fetch(API_SHEET_2);
+                const votes = await checkRes.json();
+
+                // ค้นหาอีเมลในคอลัมน์ voter_email
+                const isDuplicate = votes.some(v => v.voter_email.toLowerCase() === emailInput);
+
+                if (isDuplicate) {
+                    Swal.fire('ลงคะแนนไม่ได้', 'อีเมลนี้ได้ใช้สิทธิ์ไปแล้ว!', 'warning');
+                    return;
+                }
+
+                // ถ้าไม่ซ้ำ ให้บันทึกข้อมูล (POST)
+                const postRes = await fetch(API_SHEET_2, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        candidate_id: CandidateID,
-                        candidate_name: Candidatename,
-                        voter_name: voterName,
-                        timestamp: new Date().toLocaleString()
+                        candidate_id: cId,
+                        candidate_name: cName,
+                        voter_email: emailInput,
+                        timestamp: new Date().toLocaleString('th-TH')
                     })
                 });
 
-                if (response.ok) {
-                    Swal.fire('สำเร็จ!', `คุณได้ลงคะแนนให้ ${name} เรียบร้อยแล้ว`, 'success');
+                if (postRes.ok) {
+                    Swal.fire('สำเร็จ!', `คุณได้ลงคะแนนให้ ${cName} เรียบร้อยแล้ว`, 'success');
+                } else {
+                    throw new Error("บันทึกไม่สำเร็จ");
                 }
+
             } catch (error) {
-                Swal.fire('ผิดพลาด', 'ไม่สามารถลงคะแนนได้ในขณะนี้', 'error');
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
+                console.error(error);
             }
         }
 
+        // เริ่มโหลดข้อมูลเมื่อเปิดหน้าเว็บ
         fetchCandidates();
     </script>
 </body>
 </html>
-        <div id="loading" class="text-center hidden">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-            <p class="mt-2 text-blue-200">กำลังประมวลผล...</p>
-        </div>
-
-        <div id="candidate-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 opacity-50 pointer-events-none">
-            </div>
-    </div>
-
-    <script>
-        const API_SHEET1 = "https://api.sheetbest.com/sheets/2cf0bece-6373-430b-b7dd-02239ebbb35c";
-        const API_SHEET2 = "https://api.sheetbest.com/sheets/71124488-65d6-4881-867b-a4aa1295eb54";
-
-        const emailInput = document.getElementById('voter-email');
-        const candidateGrid = document.getElementById('candidate-list');
-
-        // ตรวจสอบการกรอกอีเมลเพื่อปลดล็อคปุ่มโหวต
-        emailInput.addEventListener('input', (e) => {
-            if(e.target.value.includes('@') && e.target.value.includes('.')) {
-                candidateGrid.classList.remove('opacity-50', 'pointer-events-none');
-            } else {
-                candidateGrid.classList.add('opacity-50', 'pointer-events-none');
-            }
-        });
-
-        async function loadCandidates() {
-            try {
-                const response = await fetch(API_SHEET1);
-                const data = await response.json();
-                const container = document.getElementById('candidate-list');
-                container.innerHTML = '';
-
-                data.forEach((item, index) => {
-                    container.innerHTML += `
-                        <div class="candidate-card rounded-3xl p-6 flex flex-col items-center shadow-2xl">
-                            <img src="${item.ImageURL}" class="w-32 h-32 rounded-full object-cover mb-4 border-4 border-blue-500/30">
-                            <h3 class="text-xl font-bold mb-1">เบอร์ ${item.ID}: ${item.Name}</h3>
-                            <button onclick="checkAndVote(${item.ID}, ${item.ผลคะแนนทดลอง} || 0}, ${index}, this)" 
-                                    class="w-full mt-4 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all active:scale-95">
-                                ลงคะแนน
-                            </button>
-                        </div>
-                    `;
-                });
-            } catch (error) { console.error(error); }
-        }
-
-        async function checkAndVote(id, currentVotes, rowIndex, btn) {
-            const email = emailInput.value.trim().toLowerCase();
-            
-            if (!email) {
-                alert("กรุณากรอกอีเมลก่อนลงคะแนน");
-                return;
-            }
-
-            if (!confirm(`ยืนยันการลงคะแนนให้เบอร์ ${id}?`)) return;
-
-            btn.disabled = true;
-            btn.innerHTML = "กำลังตรวจสอบ...";
-            document.getElementById('loading').classList.remove('hidden');
-
-            try {
-                // 1. ตรวจสอบใน Sheet 2 ว่าอีเมลนี้โหวตไปหรือยัง
-                const checkRes = await fetch(`${API_SHEET2}/Email/${email}`);
-                const existingVote = await checkRes.json();
-
-                if (existingVote.length > 0) {
-                    alert("ขออภัย: อีเมลนี้ได้ใช้สิทธิ์ลงคะแนนไปแล้ว");
-                    document.getElementById('loading').classList.add('hidden');
-                    btn.disabled = false;
-                    btn.innerHTML = "ลงคะแนน";
-                    return;
-                }
-
-                // 2. ถ้ายังไม่เคยโหวต -> บันทึก Log (Sheet 2)
-                await fetch(API_SHEET2, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        Timestamp: new Date().toLocaleString('th-TH'),
-                        CandidateID: id,
-                        Email: email
-                    })
-                });
-
-                // 3. อัปเดตคะแนน (Sheet 1)
-                await fetch(`${API_SHEET1}/${rowIndex}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        Votes: parseInt(currentVotes) + 1
-                    })
-                });
-
-                alert("ลงคะแนนสำเร็จ! ขอบคุณที่ร่วมใช้สิทธิ์");
-                location.reload(); 
-            } catch (err) {
-                alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
-                console.error(err);
-            }
-        }
-
-        loadCandidates();
-    </script>
-</body>
-</html>
-
