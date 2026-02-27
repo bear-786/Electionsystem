@@ -65,8 +65,8 @@
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        candidate_id: id,
-                        candidate_name: name,
+                        candidate_id: CandidateID,
+                        candidate_name: Candidatename,
                         voter_name: voterName,
                         timestamp: new Date().toLocaleString()
                     })
