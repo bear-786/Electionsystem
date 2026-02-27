@@ -3,37 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Vote 2026 - Email Verification</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
+    <title>ระบบเลือกตั้งออนไลน์</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        body { 
-            font-family: 'Sarabun', sans-serif; 
-            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); 
-            min-height: 100vh;
-        }
-        .candidate-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
+        body { font-family: 'Tahoma', sans-serif; background: #f4f4f9; text-align: center; padding: 20px; }
+        .container { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+        .card { background: white; border-radius: 10px; padding: 20px; width: 250px; shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .card img { width: 100%; height: 200px; object-fit: cover; border-radius: 5px; }
+        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        button:disabled { background: #ccc; }
     </style>
 </head>
-<body class="p-6 md:p-12 text-white">
+<body>
 
-    <div class="max-w-5xl mx-auto">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl md:text-6xl font-black mb-4 tracking-tight">VOTE NOW</h1>
-            <p class="text-blue-300 text-lg uppercase tracking-widest">ยืนยันตัวตนผ่านอีเมลเพื่อลงคะแนน</p>
-        </header>
+    <h1>🗳️ เลือกตั้งออนไลน์ 2026</h1>
+    <div id="loading">กำลังโหลดรายชื่อผู้สมัคร...</div>
+    <div class="container" id="candidate-list"></div>
 
-        <div class="max-w-md mx-auto mb-12 bg-white/10 p-6 rounded-3xl border border-white/20 shadow-xl">
-            <label class="block text-sm font-medium mb-2 text-blue-200">ระบุอีเมลของคุณเพื่อเริ่มลงคะแนน:</label>
-            <input type="email" id="voter-email" placeholder="example@email.com" 
-                   class="w-full p-4 rounded-xl bg-slate-800 border border-blue-500/50 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <p class="text-xs text-slate-400 mt-2">* 1 อีเมลสามารถลงคะแนนได้เพียง 1 ครั้งเท่านั้น</p>
-        </div>
+    <script>
+        const API_GET_CANDIDATES = "https://api.sheetbest.com/sheets/2cf0bece-6373-430b-b7dd-02239ebbb35c";
+        const API_POST_VOTE = "https://api.sheetbest.com/sheets/71124488-65d6-4881-867b-a4aa1295eb54";
 
+        // 1. ดึงข้อมูลผู้สมัครจาก Sheet 1
+        async function fetchCandidates() {
+            try {
+                const response = await fetch(API_GET_CANDIDATES);
+                const data = await response.json();
+                displayCandidates(data);
+                document.getElementById('loading').style.display = 'none';
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById('loading').innerText = "โหลดข้อมูลไม่สำเร็จ";
+            }
+        }
+
+        // 2. แสดงผลรายชื่อ
+        function displayCandidates(candidates) {
+            const list = document.getElementById('candidate-list');
+            candidates.forEach(person => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="${person.image || 'https://via.placeholder.com/150'}" alt="profile">
+                    <h3>${person.name}</h3>
+                    <p>${person.description || ''}</p>
+                    <button onclick="vote('${person.id}', '${person.name}')">ลงคะแนน</button>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        // 3. ส่งคะแนนไปที่ Sheet 2
+        async function vote(id, name) {
+            const voterName = prompt("กรุณากรอกชื่อผู้ลงคะแนน:");
+            if (!voterName) return;
+
+            Swal.fire({ title: 'กำลังบันทึกคะแนน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const response = await fetch(API_POST_VOTE, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        candidate_id: id,
+                        candidate_name: name,
+                        voter_name: voterName,
+                        timestamp: new Date().toLocaleString()
+                    })
+                });
+
+                if (response.ok) {
+                    Swal.fire('สำเร็จ!', `คุณได้ลงคะแนนให้ ${name} เรียบร้อยแล้ว`, 'success');
+                }
+            } catch (error) {
+                Swal.fire('ผิดพลาด', 'ไม่สามารถลงคะแนนได้ในขณะนี้', 'error');
+            }
+        }
+
+        fetchCandidates();
+    </script>
+</body>
+</html>
         <div id="loading" class="text-center hidden">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
             <p class="mt-2 text-blue-200">กำลังประมวลผล...</p>
