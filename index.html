@@ -3,115 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบเลือกตั้งออนไลน์ 2026</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;500;700&display=swap" rel="stylesheet">
+    <title>Smart Vote 2024</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Kanit', sans-serif; background-color: #f0f2f5; }
-        .candidate-card { border: none; border-radius: 20px; transition: 0.3s; overflow: hidden; background: #fff; }
-        .candidate-card:hover { transform: translateY(-8px); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
-        .img-container { width: 120px; height: 120px; margin: -60px auto 15px; position: relative; }
-        .candidate-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 5px solid #fff; background: #eee; shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .color-banner { height: 100px; width: 100%; }
-        .party-tag { font-size: 0.9rem; font-weight: 500; padding: 4px 12px; border-radius: 50px; display: inline-block; margin-bottom: 10px; }
-        .btn-vote { border-radius: 12px; font-weight: 700; padding: 12px; transition: 0.2s; }
-        .btn-vote:active { transform: scale(0.95); }
+        body { font-family: 'Sarabun', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .candidate-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .candidate-card:hover { transform: translateY(-10px) scale(1.02); shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .vote-btn { transition: all 0.2s; position: relative; overflow: hidden; }
+        .vote-btn:active { transform: scale(0.95); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
     </style>
 </head>
-<body>
+<body class="min-h-screen py-10 px-4">
 
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h1 class="fw-bold text-dark">🗳️ ระบบลงคะแนนเลือกตั้ง</h1>
-        <p class="text-secondary">กรุณาตรวจสอบข้อมูลผู้สมัครก่อนกดยืนยัน</p>
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-12 fade-in">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">ระบบเลือกตั้งออนไลน์</h1>
+            <p class="text-blue-100 text-lg">ร่วมใช้สิทธิ์ของคุณ เพื่อสร้างการเปลี่ยนแปลงที่ดียิ่งขึ้น</p>
+            <div class="mt-4 inline-block px-4 py-1 bg-white/20 rounded-full text-white text-sm backdrop-blur-sm">
+                📍 เขตเลือกตั้งที่ 1
+            </div>
+        </header>
+        
+        <div id="loading" class="flex flex-col items-center justify-center space-y-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
+            <p class="text-white animate-pulse">กำลังเตรียมรายชื่อผู้สมัคร...</p>
+        </div>
+
+        <div id="candidate-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"></div>
     </div>
 
-    <div id="loader" class="text-center py-5">
-        <div class="spinner-grow text-primary" role="status"></div>
-        <p class="mt-3 text-muted">กำลังดึงข้อมูลจาก Google Sheets...</p>
-    </div>
+    <footer class="text-center mt-12 text-white/60 text-sm">
+        &copy; 2024 ระบบเลือกตั้งดิจิทัล • ข้อมูลเชื่อมต่อผ่าน Google Sheets
+    </footer>
 
-    <div id="candidateArea" class="row g-4 justify-content-center"></div>
-</div>
+    <script>
+        const API_SHEET1 = "https://api.sheetbest.com/sheets/2cf0bece-6373-430b-b7dd-02239ebbb35c";
+        const API_SHEET2 = "https://api.sheetbest.com/sheets/71124488-65d6-4881-867b-a4aa1295eb54";
 
-<script>
-    // API URL ของคุณ
-    const API_ENDPOINT = "https://api.sheetbest.com/sheets/c40d1c8e-fa6a-4aa5-a9ad-31abc84388be";
-
-    // ฟังก์ชันโหลดข้อมูลผู้สมัคร
-    async function getCandidates() {
-        try {
-            const response = await fetch(`${API_ENDPOINT}/tabs/candidates`);
-            const data = await response.json();
-            renderCandidates(data);
-        } catch (err) {
-            console.error("Fetch Error:", err);
-            document.getElementById('loader').innerHTML = `<p class="text-danger">เชื่อมต่อข้อมูลไม่ได้ กรุณาเช็ค SheetBest</p>`;
+        async function loadCandidates() {
+            try {
+                const response = await fetch(API_SHEET1);
+                const data = await response.json();
+                displayCandidates(data);
+                document.getElementById('loading').classList.add('hidden');
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById('loading').innerHTML = `<p class="text-red-300">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>`;
+            }
         }
-    }
 
-    // ฟังก์ชันสร้าง Card ผู้สมัคร
-    function renderCandidates(candidates) {
-        const area = document.getElementById('candidateArea');
-        document.getElementById('loader').style.display = 'none';
+        function displayCandidates(candidates) {
+            const container = document.getElementById('candidate-list');
+            container.innerHTML = '';
 
-        area.innerHTML = candidates.map(c => `
-            <div class="col-lg-4 col-md-6">
-                <div class="card candidate-card h-100 shadow-sm">
-                    <div class="color-banner" style="background: ${c.Colour || '#007bff'}"></div>
-                    <div class="card-body text-center">
-                        <div class="img-container">
-                            <img src="${c['Logo, Candid image'] || 'https://via.placeholder.com/150'}" class="candidate-img shadow">
+            candidates.forEach((person, index) => {
+                const card = `
+                    <div class="glass p-6 rounded-3xl shadow-2xl candidate-card fade-in" style="animation-delay: ${index * 0.1}s">
+                        <div class="relative">
+                            <img src="${person.ImageURL || 'https://via.placeholder.com/150'}" 
+                                 class="w-32 h-32 rounded-2xl mx-auto mb-6 object-cover shadow-lg border-4 border-white">
+                            <span class="absolute top-0 right-0 bg-blue-600 text-white w-10 h-10 flex items-center justify-center rounded-full font-bold shadow-lg">
+                                ${person.ID}
+                            </span>
                         </div>
-                        <span class="party-tag" style="background: ${c.Colour}20; color: ${c.Colour}">${c['ชื่อพรรค']}</span>
-                        <h2 class="fw-bold mb-1">เบอร์ ${c.CandidateNumber}</h2>
-                        <h5 class="text-dark mb-3">${c['Candidate name']}</h5>
-                        <p class="text-muted small mb-4">คะแนน Party List: <strong>${c['คะเเนน Party List'] || '0'}</strong></p>
                         
-                        <button onclick="submitVote('${c.CandidateNumber}', '${c['Candidate name']}')" 
-                                class="btn btn-vote w-100 text-white shadow-sm"
-                                style="background-color: ${c.Colour || '#007bff'}">
-                            ลงคะแนนเสียง
+                        <h2 class="text-2xl font-bold text-gray-800 text-center mb-1">${person.Name}</h2>
+                        <p class="text-gray-500 text-center text-sm mb-6 h-10 overflow-hidden">${person.Description}</p>
+                        
+                        <div class="bg-blue-50 rounded-2xl p-4 mb-6 flex justify-between items-center">
+                            <span class="text-gray-600 font-medium text-sm">คะแนนปัจจุบัน</span>
+                            <span class="text-2xl font-black text-blue-600">${person.Votes || 0}</span>
+                        </div>
+
+                        <button onclick="vote(${person.ID}, ${person.Votes || 0}, ${index}, this)" 
+                                class="vote-btn w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-6 rounded-2xl shadow-blue-200 shadow-lg flex items-center justify-center space-x-2">
+                            <span>ลงคะแนนเสียง</span>
                         </button>
                     </div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    // ฟังก์ชันส่งคะแนนไปยังหน้า votes
-    async function submitVote(id, name) {
-        const confirmVote = confirm(`คุณยืนยันที่จะลงคะแนนให้ [เบอร์ ${id}] ${name} หรือไม่?`);
-        if (!confirmVote) return;
-
-        // บันทึกเวลาปัจจุบัน
-        const now = new Date();
-        const timestamp = now.toLocaleString('th-TH');
-
-        const voteData = {
-            CandidateNumber: id,
-            Timestamp: timestamp
-        };
-
-        try {
-            const response = await fetch(`${API_ENDPOINT}/tabs/votes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(voteData)
+                `;
+                container.innerHTML += card;
             });
-
-            if (response.ok) {
-                alert("✅ ลงคะแนนสำเร็จเรียบร้อยแล้ว!");
-                location.reload(); 
-            }
-        } catch (error) {
-            alert("❌ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
         }
-    }
 
-    // เริ่มทำงานเมื่อเปิดหน้าเว็บ
-    window.onload = getCandidates;
-</script>
+        async function vote(id, currentVotes, rowIndex, btn) {
+            if (!confirm(`ยืนยันการลงคะแนนให้เบอร์ ${id}?`)) return;
 
+            // เปลี่ยนสถานะปุ่มเป็น Loading
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>กำลังบันทึก...</span>`;
+
+            try {
+                // 1. บันทึก Log (Sheet 2)
+                await fetch(API_SHEET2, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        Timestamp: new Date().toLocaleString('th-TH'),
+                        CandidateID: id
+                    })
+                });
+
+                // 2. อัปเดตคะแนน (Sheet 1)
+                await fetch(`${API_SHEET1}/${rowIndex}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        Votes: parseInt(currentVotes || 0) + 1
+                    })
+                });
+
+                alert("🎉 ขอบคุณที่ใช้สิทธิ์! ลงคะแนนสำเร็จแล้ว");
+                location.reload();
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        loadCandidates();
+    </script>
 </body>
 </html>
